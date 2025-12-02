@@ -34,8 +34,10 @@ module pipe_controller(
 		//the +-5 for the positions give the dimension of the block (i.e. it will be 10x10 pixels)
 	assign block_fill=vCount>=(ypos-5) && vCount<=(ypos+5) && hCount>=(xpos-5) && hCount<=(xpos+5);
 	
-	//assigning pipe block
-	assign  pipe_fill = pipeVCount>=(pipeYPos-200) && pipeVCount<=(pipeYPos+200) && pipeHCount>= (pipeHCount>=(pipeXPos-20)) && (pipeHCount>=(pipeXPos+20));
+	// input [9:0] hCount, vCount,
+	// pipe is a tall rectangle 40px wide, 400px high centered at pipeXPos, pipeYPos
+	assign pipe_fill = vCount >= (pipeYPos - 200) && vCount <= (pipeYPos + 200) && hCount >= (pipeXPos - 20)  && hCount <= (pipeXPos + 20);
+
 	
 	always@(posedge clk, posedge rst) 
 	begin
@@ -107,3 +109,4 @@ module pipe_controller(
 	
 	
 endmodule
+
