@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
+// Company: USC Viterbi EE354 F2025
 // Engineer: 
 // 
 // Create Date:    12:18:00 12/14/2017 
@@ -44,6 +44,24 @@ module vga_top(
 	assign Reset=BtnC;
 	wire bright;
 	wire[9:0] hc, vc;
+
+	// *************BACKGROUND ROM (640x480 scaled)
+	wire [11:0] bg_color;
+	wire [9:0] bg_row = vc - 35;   // shift to visible region if needed
+	wire [9:0] bg_col = hc - 144;
+	
+	// clamp to ROM size (if your ROM is 640×480 or scaled)
+	wire [9:0] bg_row_clamped = (bg_row > 479) ? 479 : bg_row;
+	wire [9:0] bg_col_clamped = (bg_col > 639) ? 639 : bg_col;
+	
+	flappyBird_background_12_bit_rom background_rom (
+	    .clk(ClkPort),
+	    .row(bg_row_clamped),
+	    .col(bg_col_clamped),
+	    .color_data(bg_color)
+	);
+
+	
 	wire[15:0] score;
 	wire up,down,left,right;
 	wire [3:0] anode;
@@ -58,6 +76,30 @@ module vga_top(
 	wire [11:0] xpos_pipe, xpos_pipe2, xpos_pipe3; 
     wire [10:0] ypos_pipe, ypos_pipe2, ypos_pipe3;
 
+	//**************** BIRD SPRITE ***************
+	localparam BIRD_WIDTH  = 30;
+	localparam BIRD_HEIGHT = 30;
+	
+	wire is_bird_pixel;
+	assign is_bird_pixel =
+	       (hc >= xpos_block - 15) &&
+	       (hc <  xpos_block + 15) &&
+	       (vc >= ypos_block - 15) &&
+	       (vc <  ypos_block + 15);
+	
+	wire [4:0] bird_sprite_row = vc - (ypos_block - 15);
+	wire [4:0] bird_sprite_col = hc - (xpos_block - 15);
+	wire [11:0] bird_color;
+	
+	flappy30by30_12_bit_rom bird_rom (
+	    .clk(ClkPort),
+	    .row(bird_sprite_row),
+	    .col(bird_sprite_col),
+	    .color_data(bird_color)
+	);
+	localparam [11:0] PURPLE_KEY = 12'b1010_0100_1100; 
+	//***end of BIRD SPRITE ***************
+
 	wire rst;
 	
 	reg [3:0]	SSD;
@@ -66,6 +108,7 @@ module vga_top(
 	wire [1:0] 	ssdscan_clk;
 	
 	reg [27:0]	DIV_CLK;
+	reg [11:0] pixel; 
 	always @ (posedge ClkPort, posedge Reset)  
 	begin : CLOCK_DIVIDER
       if (Reset)
@@ -98,7 +141,7 @@ module vga_top(
                     (xpos_block - 5 <= xpos_pipe3 + 50) &&
                     ((ypos_block - 5 <= ypos_pipe3 - 50) || (ypos_block + 5 >= ypos_pipe3 + 50));
                     
-    assign hitGround = (xpos_block >=514);
+	assign hitGround = (ypos_block >= 514); //changed to YPOS because too low means checking vertical allignement
 
     assign hitPipe = hitPipe1 || hitPipe2 || hitPipe3 || hitGround;
     
@@ -138,7 +181,40 @@ module vga_top(
         end
     end
 
-    assign rgb = (~bright) ? 12'b0000_0000_0000 :(fail) ? 12'b1111_0000_0000 : (rgb_pipe + rgb_block + rgb_pipe2 + rgb_pipe3);
+    // assign rgb = (~bright) ? 12'b0000_0000_0000 :(fail) ? 12'b1111_0000_0000 : (rgb_pipe + rgb_block + rgb_pipe2 + rgb_pipe3);
+	//Updated RGB logic with sprite
+	
+	always @* begin
+	    if (~bright) begin
+	        pixel = 12'h000;
+	    end
+	    else begin
+	        // 1) base: background
+	        pixel = bg_color;
+	
+	        // 2) pipes
+	        if (rgb_pipe  != 12'h000) pixel = rgb_pipe;
+	        if (rgb_pipe2 != 12'h000) pixel = rgb_pipe2;
+	        if (rgb_pipe3 != 12'h000) pixel = rgb_pipe3;
+	
+	        // 3) old block (optional fallback / hitbox)
+	        if (rgb_block != 12'h000) pixel = rgb_block;
+	
+	        // 4) bird sprite overrides block, with purple transparent
+	        if (is_bird_pixel && (bird_color != PURPLE_KEY))
+	            pixel = bird_color;
+	
+	        // 5) fail overrides everything
+	        if (fail)
+	            pixel = 12'hF00;
+		    end
+		end
+	
+	assign rgb = pixel;
+	
+
+	
+	
     assign audioOut = (duration > 0) & (tone < 41666);
 
 	assign vgaR = rgb[11 : 8];
@@ -230,3 +306,4 @@ module vga_top(
 	assign {Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp} = {SSD_CATHODES};
 
 endmodule
+
