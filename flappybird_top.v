@@ -11,9 +11,8 @@ module flappybird_top (
     output [3:0] vgaBlue
 );
 
-    // -----------------------------
-    // VGA timing (your display_controller)
-    // -----------------------------
+
+    // VGA timing (display_controller)
     wire        bright;
     wire [9:0]  hCount;
     wire [9:0]  vCount;
@@ -27,10 +26,9 @@ module flappybird_top (
         .vCount (vCount)
     );
 
-    // -----------------------------
-    // Slow tick for game updates
-    // -----------------------------
-    // 100 MHz / 2^20 ≈ 95 Hz → decent game speed
+    
+    // ********Slow tick for game updates******
+    // 100 MHz / 2^20 ≈ 95 Hz 
     reg [19:0] tick_div;
     wire       tick = (tick_div == 20'd0);
 
@@ -42,9 +40,7 @@ module flappybird_top (
         end
     end
 
-    // -----------------------------
-    // Flappy Bird core (game logic)
-    // -----------------------------
+    //*********** Flappy Bird core (game logic) ************
     wire [9:0] bird_y;
     wire [9:0] pipe1_x, pipe1_gap;
     wire [9:0] pipe2_x, pipe2_gap;
@@ -71,10 +67,8 @@ module flappybird_top (
         .q_hit     (q_hit)
     );
 
-    // -----------------------------
-    // Rendering constants
-    // (must match the core’s idea of geometry)
-    // -----------------------------
+    // ************Rendering constants***************
+    // needs to match the core’s idea of geometry
     localparam integer SCREEN_WIDTH  = 640;
     localparam integer BIRD_X        = 320;   // same as in flappybirdcore
     // we’ll draw a 30x30 sprite even though core uses 20x20 for collision
@@ -88,9 +82,7 @@ module flappybird_top (
     localparam [11:0] GROUND_COLOR = 12'b1000_0100_0000; // brown-ish
     localparam [11:0] SKY_COLOR    = 12'b0010_1100_1111; // light blue
 
-    // -----------------------------
     // Sprite ROM hookup (flappy30by30)
-    // -----------------------------
     wire        bird_region;
     wire [4:0]  sprite_row;
     wire [4:0]  sprite_col;
