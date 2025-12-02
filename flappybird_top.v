@@ -116,7 +116,7 @@ module flappybird_top (
     assign sprite_row = (vCount - bird_y)[4:0];
     assign sprite_col = (hCount - BIRD_X)[4:0];
 
-    // NOTE: adjust module name if yours is different
+    // HAS TO MATCH MODULE NAME
     flappy30by30_12_bit_rom bird_rom (
         .clk        (ClkPort),
         .row        (sprite_row),
