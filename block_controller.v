@@ -7,14 +7,14 @@ module block_controller(
 	input up, input down, input left, input right,
 	input [9:0] hCount, vCount,
 	output reg [11:0] rgb_out,
-	output reg [11:0] background
+	output reg [11:0] background,
+	output reg [9:0] xpos, ypos
    );
 
 	wire block_fill;
 	wire pipe_fill;
 	
 	//these two values dictate the center of the block, incrementing and decrementing them leads the block to move in certain directions
-	reg [9:0] xpos, ypos;
 	reg start;  
 	reg outOfBounds;
 	
@@ -43,7 +43,6 @@ module block_controller(
 			start<=0;
 			xpos<=450;
 			ypos<=250;
-			outOfBounds<=0;
 		end
 		else if (clk) begin
 		
@@ -64,10 +63,9 @@ module block_controller(
 					//xpos<=800;
 			//end
 			if(up) begin
-				ypos<=ypos-2;
+			    if(ypos>=70)
+				    ypos<=ypos-2;
 				start<=1;
-				if(ypos<=34)
-					ypos<=34;
 			end
 		    //!!!NEW added if not up then falling down 
 		    else if (start)begin

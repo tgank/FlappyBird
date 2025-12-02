@@ -37,7 +37,8 @@ module vga_top(
 	output Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
 	
 	//output MemOE, MemWR, RamCS,
-	output  QuadSpiFlashCS
+	output  QuadSpiFlashCS,
+	output audioOut
 	);
 	wire Reset;
 	assign Reset=BtnC;
@@ -49,8 +50,13 @@ module vga_top(
 	wire [11:0] rgb;
 	wire [11:0] rgb_block;
 	wire[11:0] rgb_pipe;
-	//wire[11:0] rgb_pipe2;
-	//wire[11:0] rgb_pipe3;
+	wire[11:0] rgb_pipe2;
+	wire[11:0] rgb_pipe3;
+	
+	wire [11:0] xpos_block , ypos_block;
+	
+	wire [11:0] xpos_pipe, xpos_pipe2, xpos_pipe3; 
+    wire [10:0] ypos_pipe, ypos_pipe2, ypos_pipe3;
 
 	wire rst;
 	
@@ -70,14 +76,71 @@ module vga_top(
 	wire move_clk;
 	assign move_clk=DIV_CLK[19]; //slower clock to drive the movement of objects on the vga screen
 	wire [11:0] background;
-	display_controller dc(.clk(ClkPort), .hSync(hSync), .vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
-	block_controller sc(.clk(move_clk), .bright(bright), .rst(BtnC), .up(BtnU), .down(BtnD),.left(BtnL),.right(BtnR),.hCount(hc), .vCount(vc), .rgb_out(rgb_block), .background(background));
-	pipe_controller pc(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe));
-	//pipe_controller2 pc2(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe2));
-	//pipe_controller3 pc3(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe3));
 
-    assign rgb =rgb_pipe + rgb_block ;
-	 
+	display_controller dc(.clk(ClkPort), .hSync(hSync), .vSync(vSync), .bright(bright), .hCount(hc), .vCount(vc));
+	block_controller sc(.clk(move_clk), .bright(bright), .rst(BtnC), .up(BtnU), .down(BtnD),.left(BtnL),.right(BtnR),.hCount(hc), .vCount(vc), .rgb_out(rgb_block), .background(background), .xpos(xpos_block), .ypos(ypos_block));
+	pipe_controller #(.initialXPos(700), .initialYPos(250)) pc(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe), .xpos(xpos_pipe), .ypos(ypos_pipe));
+	pipe_controller #(.initialXPos(1100), .initialYPos(160)) pc2(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe2), .xpos(xpos_pipe2), .ypos(ypos_pipe2));
+	pipe_controller #(.initialXPos(1500), .initialYPos(370)) pc3(.clk(move_clk), .bright(bright),.up(BtnU), .rst(BtnC),.hCount(hc), .vCount(vc), .rgb_out(rgb_pipe3), .xpos(xpos_pipe3), .ypos(ypos_pipe3));
+    
+    wire hitPipe1, hitPipe2, hitPipe3, hitGround;
+    wire hitPipe;
+
+    assign hitPipe1 = (xpos_block + 5 >= xpos_pipe - 50) && 
+                    (xpos_block - 5 <= xpos_pipe + 50) &&
+                    ((ypos_block - 5 <= ypos_pipe - 50) || (ypos_block + 5 >= ypos_pipe + 50));
+
+    assign hitPipe2 = (xpos_block + 5 >= xpos_pipe2 - 50) && 
+                    (xpos_block - 5 <= xpos_pipe2 + 50) &&
+                    ((ypos_block - 5 <= ypos_pipe2 - 50) || (ypos_block + 5 >= ypos_pipe2 + 50));
+
+    assign hitPipe3 = (xpos_block + 5 >= xpos_pipe3 - 50) && 
+                    (xpos_block - 5 <= xpos_pipe3 + 50) &&
+                    ((ypos_block - 5 <= ypos_pipe3 - 50) || (ypos_block + 5 >= ypos_pipe3 + 50));
+                    
+    assign hitGround = (xpos_block >=514);
+
+    assign hitPipe = hitPipe1 || hitPipe2 || hitPipe3 || hitGround;
+    
+    wire passPipe1, passPipe2, passPipe3;
+
+    assign passPipe1 = (xpos_pipe >= xpos_block) && (xpos_pipe < xpos_block + 2) &&
+                (ypos_block - 5 >= ypos_pipe - 50) && (ypos_block + 5 <= ypos_pipe + 50);
+
+    assign passPipe2 = (xpos_pipe2 >= xpos_block) && (xpos_pipe2 < xpos_block + 2) &&
+                (ypos_block - 5 >= ypos_pipe2 - 50) && (ypos_block + 5 <= ypos_pipe2 + 50);
+
+    assign passPipe3 = (xpos_pipe3 >= xpos_block) && (xpos_pipe3 < xpos_block + 2) &&
+                (ypos_block - 5 >= ypos_pipe3 - 50) && (ypos_block + 5 <= ypos_pipe3 + 50);
+    reg fail;
+    reg[11:0] points;
+    reg [23:0] tone, duration;
+
+    always @(posedge move_clk, posedge Reset) begin
+        if(Reset)begin
+            fail<=0;
+            points<=0;
+        end
+        else if(hitPipe)
+            fail<=1;
+        else if ( passPipe1 || passPipe2 || passPipe3) begin
+            points<= points+1;
+        end
+    end
+    always @(posedge ClkPort, posedge Reset) begin
+        if(Reset)begin
+            tone<=0;
+            duration<=0;
+        end
+        else begin
+            tone <= (tone >= 83333) ? 0 : tone + 1;
+            duration <= (passPipe1 || passPipe2 || passPipe3) ? 5000000 : (duration > 0) ? duration - 1 : 0;
+        end
+    end
+
+    assign rgb = (~bright) ? 12'b0000_0000_0000 :(fail) ? 12'b1111_0000_0000 : (rgb_pipe + rgb_block + rgb_pipe2 + rgb_pipe3);
+    assign audioOut = (duration > 0) & (tone < 41666);
+
 	assign vgaR = rgb[11 : 8];
 	assign vgaG = rgb[7  : 4];
 	assign vgaB = rgb[3  : 0];
@@ -94,9 +157,9 @@ module vga_top(
 	//SSDs display 
 	//to show how we can interface our "game" module with the SSD's, we output the 12-bit rgb background value to the SSD's
 	assign SSD3 = 4'b0000;
-	assign SSD2 = background[11:8];
-	assign SSD1 = background[7:4];
-	assign SSD0 = background[3:0];
+	assign SSD2 = points[11:8];
+	assign SSD1 = points[7:4];
+	assign SSD0 = points[3:0];
 
 
 	// need a scan clk for the seven segment display 
