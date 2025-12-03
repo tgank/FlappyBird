@@ -97,7 +97,7 @@ module vga_top(
 	    .col(bird_sprite_col),
 	    .color_data(bird_color)
 	);
-	localparam [11:0] PURPLE_KEY = 12'b1010_0100_1100; 
+	localparam [11:0] PURPLE_KEY = 12'hC4C; 
 	//***end of BIRD SPRITE ***************
 
 	wire rst;
@@ -306,4 +306,5 @@ module vga_top(
 	assign {Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp} = {SSD_CATHODES};
 
 endmodule
+
 
