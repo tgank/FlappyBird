@@ -104,7 +104,7 @@ module flappybird_top (
     wire [11:0] bird_color;
 
     // purple key color from your ROM (background to hide)
-    localparam [11:0] PURPLE_KEY = 12'b101001001100_
+    localparam [11:0] PURPLE_KEY = 12'hC4C
  // is current pixel inside sprite box?
     assign bird_region =
         (hCount >= BIRD_X) &&
